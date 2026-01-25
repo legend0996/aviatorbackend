@@ -1,12 +1,27 @@
-from services.settings_service import get_settings, update_settings
-
 from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel
 from fastapi.openapi.utils import get_openapi
+from sqlalchemy import text
+
+from database import engine
 
 from auth import authenticate_admin
 from jwt_utils import create_access_token
 from dependencies import require_admin_token
+
+from services.settings_service import get_settings, update_settings
+from services.wallet_service import (
+    get_wallet,
+    credit_wallet,
+    debit_wallet,
+    create_pending_deposit,
+)
+from services.user_service import get_user_id
+from services.auth_service import register_user, authenticate_user
+from services.mpesa_service import stk_push, b2c_withdraw
+
+from services.aviator_service import get_current_round
+from services.bet_service import place_bet
 
 
 # -------------------
@@ -20,16 +35,32 @@ app = FastAPI(
 
 
 # -------------------
-# MODELS
+# REQUEST MODELS
 # -------------------
-class LoginRequest(BaseModel):
+class AdminLoginRequest(BaseModel):
     username: str
     password: str
+
+
+class UserAuthRequest(BaseModel):
+    phone_number: str
+    password: str
+
+
 class SettingsUpdate(BaseModel):
     min_deposit: float
     min_withdraw: float
     deposit_enabled: bool
     withdraw_enabled: bool
+
+
+class WalletAmountRequest(BaseModel):
+    amount: float
+
+
+class BetRequest(BaseModel):
+    amount: float
+    auto_cashout: float | None = None
 
 
 # -------------------
@@ -40,8 +71,48 @@ def root():
     return {"status": "Backend running"}
 
 
+# -------------------
+# AVIATOR ROUND INFO
+# -------------------
+@app.get("/aviator/round")
+def aviator_round():
+    round_data = get_current_round()
+    if not round_data:
+        return {"round": None}
+
+    return {
+        "round_id": round_data[0],
+        "status": round_data[2],
+        "betting_close_at": round_data[3],
+    }
+
+
+# -------------------
+# AVIATOR BET
+# -------------------
+@app.post("/aviator/bet")
+def aviator_bet(
+    data: BetRequest,
+    payload: dict = Depends(require_admin_token),
+):
+    user_id = get_user_id(payload["sub"])
+    if not user_id:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    place_bet(
+        user_id=user_id,
+        amount=data.amount,
+        auto_cashout=data.auto_cashout,
+    )
+
+    return {"success": True}
+
+
+# -------------------
+# ADMIN AUTH
+# -------------------
 @app.post("/admin/login")
-def admin_login(data: LoginRequest):
+def admin_login(data: AdminLoginRequest):
     if not authenticate_admin(data.username, data.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -49,46 +120,43 @@ def admin_login(data: LoginRequest):
     return {
         "success": True,
         "access_token": token,
-        "token_type": "bearer"
+        "token_type": "bearer",
     }
 
 
 # -------------------
-# PROTECTED ROUTES
+# USER AUTH (PHONE)
+# -------------------
+@app.post("/auth/register")
+def user_register(data: UserAuthRequest):
+    register_user(data.phone_number, data.password)
+    return {"success": True, "message": "User registered successfully"}
+
+
+@app.post("/auth/login")
+def user_login(data: UserAuthRequest):
+    user_id = authenticate_user(data.phone_number, data.password)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    token = create_access_token({"sub": data.phone_number})
+    return {
+        "success": True,
+        "access_token": token,
+        "token_type": "bearer",
+    }
+
+
+# -------------------
+# ADMIN PROTECTED ROUTES
 # -------------------
 @app.get("/admin/protected")
 def admin_protected(payload: dict = Depends(require_admin_token)):
     return {
         "message": "You are authorized",
-        "admin": payload["sub"]
+        "admin": payload["sub"],
     }
-from services.settings_service import get_settings, update_settings
 
-
-class SettingsUpdate(BaseModel):
-    min_deposit: float
-    min_withdraw: float
-    deposit_enabled: bool
-    withdraw_enabled: bool
-
-
-@app.get("/admin/settings")
-def read_settings(payload: dict = Depends(require_admin_token)):
-    return get_settings()
-
-
-@app.put("/admin/settings")
-def edit_settings(
-    data: SettingsUpdate,
-    payload: dict = Depends(require_admin_token)
-):
-    update_settings(
-        data.min_deposit,
-        data.min_withdraw,
-        data.deposit_enabled,
-        data.withdraw_enabled,
-    )
-    return {"success": True}
 
 @app.get("/admin/settings")
 def read_settings(payload: dict = Depends(require_admin_token)):
@@ -101,7 +169,7 @@ def read_settings(payload: dict = Depends(require_admin_token)):
 @app.put("/admin/settings")
 def edit_settings(
     data: SettingsUpdate,
-    payload: dict = Depends(require_admin_token)
+    payload: dict = Depends(require_admin_token),
 ):
     update_settings(
         data.min_deposit,
@@ -113,8 +181,123 @@ def edit_settings(
 
 
 # -------------------
+# WALLET ROUTES
+# -------------------
+@app.get("/wallet/balance")
+def wallet_balance(payload: dict = Depends(require_admin_token)):
+    user_id = get_user_id(payload["sub"])
+    if not user_id:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {"balance": get_wallet(user_id)}
+
+
+@app.post("/wallet/deposit/stk")
+def wallet_stk_deposit(
+    data: WalletAmountRequest,
+    payload: dict = Depends(require_admin_token),
+):
+    phone = payload["sub"]
+    user_id = get_user_id(phone)
+
+    if not user_id:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    reference = f"stk_{user_id}_{int(data.amount)}"
+
+    create_pending_deposit(
+        user_id=user_id,
+        amount=data.amount,
+        reference=reference,
+    )
+
+    response = stk_push(
+        phone=phone,
+        amount=data.amount,
+        reference=reference,
+    )
+
+    return {"success": True, "mpesa": response}
+
+
+@app.post("/wallet/withdraw/mpesa")
+def wallet_withdraw_mpesa(
+    data: WalletAmountRequest,
+    payload: dict = Depends(require_admin_token),
+):
+    phone = payload["sub"]
+    user_id = get_user_id(phone)
+
+    debit_wallet(
+        user_id=user_id,
+        amount=data.amount,
+        tx_type="withdraw",
+        reference="mpesa_withdraw",
+    )
+
+    response = b2c_withdraw(phone, data.amount)
+    return {"success": True, "mpesa": response}
+
+
+# -------------------
+# M-PESA STK CALLBACK
+# -------------------
+@app.post("/mpesa/stk/callback")
+def stk_callback(payload: dict):
+    callback = payload["Body"]["stkCallback"]
+    result_code = callback["ResultCode"]
+
+    if result_code != 0:
+        return {"ResultCode": 0}
+
+    metadata = callback["CallbackMetadata"]["Item"]
+    amount = next(i["Value"] for i in metadata if i["Name"] == "Amount")
+    reference = next(i["Value"] for i in metadata if i["Name"] == "AccountReference")
+
+    with engine.begin() as conn:
+        tx = conn.execute(
+            text("""
+                SELECT user_id
+                FROM transactions
+                WHERE reference = :r AND status = 'pending'
+            """),
+            {"r": reference},
+        ).fetchone()
+
+        if not tx:
+            return {"ResultCode": 0}
+
+        conn.execute(
+            text("""
+                UPDATE transactions
+                SET status = 'completed'
+                WHERE reference = :r
+            """),
+            {"r": reference},
+        )
+
+    credit_wallet(
+        user_id=tx[0],
+        amount=amount,
+        tx_type="deposit",
+        reference=reference,
+    )
+
+    return {"ResultCode": 0}
+
+
+# -------------------
 # SWAGGER JWT SUPPORT
 # -------------------
+from services.aviator_service import game_loop
+import threading
+
+
+@app.on_event("startup")
+def start_aviator_engine():
+    t = threading.Thread(target=game_loop, daemon=True)
+    t.start()
+
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
@@ -130,15 +313,13 @@ def custom_openapi():
         "BearerAuth": {
             "type": "http",
             "scheme": "bearer",
-            "bearerFormat": "JWT"
+            "bearerFormat": "JWT",
         }
     }
 
     openapi_schema["security"] = [{"BearerAuth": []}]
-
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
 
 app.openapi = custom_openapi
-
