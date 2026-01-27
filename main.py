@@ -24,6 +24,10 @@ from services.mpesa_service import stk_push, b2c_withdraw
 from services.aviator_service import get_current_round
 from services.bet_service import place_bet
 
+from database import Base, engine
+
+Base.metadata.create_all(bind=engine)
+
 
 # -------------------
 # APP SETUP
