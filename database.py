@@ -1,13 +1,22 @@
+import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-# DATABASE CONFIGURATION
-DB_USER = "root"
-DB_PASSWORD = "root_password"  # MySQL password
-DB_HOST = "localhost"
-DB_NAME = "aviator_db"
+# Render provides DATABASE_URL automatically for PostgreSQL
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is not set")
 
-engine = create_engine(DATABASE_URL, echo=True)
-SessionLocal = sessionmaker(bind=engine)
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+)
+
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+)
+
+Base = declarative_base()
