@@ -6,7 +6,6 @@ uvicorn==0.40.0
 # Database
 SQLAlchemy==2.0.45
 PyMySQL==1.1.2
-mysql-connector-python==8.1.1
 greenlet==3.3.0
 
 # Authentication / Security
