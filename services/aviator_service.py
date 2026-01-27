@@ -129,8 +129,10 @@ def game_loop():
         t = threading.Thread(
             target=run_multiplier,
             args=(round_id, crash),
-            daemon=True
+            daemon=False
         )
         t.start()
 
-        time.sleep(10)  # buffer before next round
+        # Wait for the round to complete before starting next one
+        t.join()
+        time.sleep(2)  # buffer before next round

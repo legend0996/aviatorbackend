@@ -2,11 +2,10 @@ import time
 from datetime import datetime
 from sqlalchemy import text
 from database import engine
-from services.aviator_service import crash_round, close_round
 from services.wallet_service import credit_wallet
 
 
-MULTIPLIER_GROWTH_RATE = 0.06  # speed of plane
+MULTIPLIER_GROWTH_RATE = 0.35  # speed of plane (increased for faster rounds)
 
 
 def run_multiplier(round_id: int, crash_point: float):
@@ -16,7 +15,7 @@ def run_multiplier(round_id: int, crash_point: float):
     multiplier = 1.00
 
     while multiplier < crash_point:
-        time.sleep(0.1)
+        time.sleep(0.05)  # reduced from 0.1 for smoother/faster gameplay
         multiplier = round(multiplier + MULTIPLIER_GROWTH_RATE, 2)
 
         # auto cashout
@@ -52,8 +51,16 @@ def run_multiplier(round_id: int, crash_point: float):
                     reference=f"auto_cashout_{bet_id}"
                 )
 
-    # CRASH
-    crash_round(round_id)
+    # CRASH - Update round status directly
+    with engine.begin() as conn:
+        conn.execute(
+            text("""
+                UPDATE game_rounds
+                SET status='crashed', ended_at=:n
+                WHERE id=:r
+            """),
+            {"r": round_id, "n": datetime.utcnow()}
+        )
 
     # lose remaining bets
     with engine.begin() as conn:
@@ -67,4 +74,14 @@ def run_multiplier(round_id: int, crash_point: float):
         )
 
     time.sleep(2)
-    close_round(round_id)
+    
+    # CLOSE - Close the round directly
+    with engine.begin() as conn:
+        conn.execute(
+            text("""
+                UPDATE game_rounds
+                SET status='closed'
+                WHERE id=:r
+            """),
+            {"r": round_id}
+        )

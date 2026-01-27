@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi.openapi.utils import get_openapi
 from sqlalchemy import text
@@ -31,6 +32,22 @@ app = FastAPI(
     title="Aviator Backend API",
     version="1.0.0",
     description="Backend API with JWT authentication"
+)
+
+# -------------------
+# CORS CONFIGURATION
+# -------------------
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -129,8 +146,11 @@ def admin_login(data: AdminLoginRequest):
 # -------------------
 @app.post("/auth/register")
 def user_register(data: UserAuthRequest):
-    register_user(data.phone_number, data.password)
-    return {"success": True, "message": "User registered successfully"}
+    try:
+        register_user(data.phone_number, data.password)
+        return {"success": True, "message": "User registered successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Registration failed: {str(e)}")
 
 
 @app.post("/auth/login")
@@ -144,6 +164,10 @@ def user_login(data: UserAuthRequest):
         "success": True,
         "access_token": token,
         "token_type": "bearer",
+        "user": {
+            "id": user_id,
+            "phone_number": data.phone_number
+        }
     }
 
 

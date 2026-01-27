@@ -12,7 +12,7 @@ def register_user(phone_number: str, password: str):
         # create user
         result = conn.execute(
             text("""
-                INSERT INTO users (phone_number, password_hash)
+                INSERT INTO users (phone, password_hash)
                 VALUES (:p, :h)
             """),
             {"p": phone_number, "h": hashed}
@@ -36,7 +36,7 @@ def authenticate_user(phone_number: str, password: str):
             text("""
                 SELECT id, password_hash
                 FROM users
-                WHERE phone_number = :p
+                WHERE phone = :p
             """),
             {"p": phone_number}
         ).fetchone()

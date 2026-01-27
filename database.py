@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker
 
 # DATABASE CONFIGURATION
 DB_USER = "root"
-DB_PASSWORD = ""          # XAMPP default (empty)
+DB_PASSWORD = "root_password"  # MySQL password
 DB_HOST = "localhost"
 DB_NAME = "aviator_db"
 
