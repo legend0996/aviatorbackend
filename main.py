@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from fastapi.openapi.utils import get_openapi
 from sqlalchemy import text
 
-from database import engine
+from database import engine, init_db_schema, ensure_admin_user
 
 from auth import authenticate_admin
 from jwt_utils import create_access_token
@@ -24,7 +24,7 @@ from services.mpesa_service_mock import stk_push, b2c_withdraw  # Use mock by de
 from services.aviator_service import get_current_round
 from services.bet_service import place_bet
 
-from database import Base, engine
+from database import Base
 
 Base.metadata.create_all(bind=engine)
 
@@ -325,6 +325,8 @@ import threading
 
 @app.on_event("startup")
 def start_aviator_engine():
+    init_db_schema()
+    ensure_admin_user()
     t = threading.Thread(target=game_loop, daemon=True)
     t.start()
 
