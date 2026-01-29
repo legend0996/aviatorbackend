@@ -3,8 +3,17 @@
 
 set -o errexit
 
-echo "=== Python Version ==="
+echo "=== Checking Python Version ==="
 python --version
+python3 --version || true
+
+# Verify we're using Python 3.11
+PYTHON_VERSION=$(python --version 2>&1 | awk '{print $2}')
+if [[ ! $PYTHON_VERSION =~ ^3\.11\. ]]; then
+    echo "ERROR: Expected Python 3.11.x, got $PYTHON_VERSION"
+    echo "Make sure runtime.txt is set to python-3.11.9"
+    exit 1
+fi
 
 echo "=== Installing dependencies ==="
 pip install --upgrade pip
