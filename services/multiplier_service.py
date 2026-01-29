@@ -22,7 +22,7 @@ def run_multiplier(round_id: int, crash_point: float):
         with engine.begin() as conn:
             bets = conn.execute(
                 text("""
-                    SELECT id, user_id, amount, auto_cashout
+                    SELECT id, user_id, bet_amount, auto_cashout
                     FROM bets
                     WHERE round_id = :r
                     AND status = 'active'
@@ -32,8 +32,8 @@ def run_multiplier(round_id: int, crash_point: float):
                 {"r": round_id, "m": multiplier}
             ).fetchall()
 
-            for bet_id, user_id, amount, auto in bets:
-                win_amount = round(amount * auto, 2)
+            for bet_id, user_id, bet_amount, auto in bets:
+                win_amount = round(bet_amount * auto, 2)
 
                 conn.execute(
                     text("""

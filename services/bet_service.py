@@ -35,7 +35,7 @@ def place_bet(user_id: int, amount: float, auto_cashout: float | None):
         conn.execute(
             text("""
                 INSERT INTO bets
-                (user_id, round_id, amount, auto_cashout, status)
+                (user_id, round_id, bet_amount, auto_cashout, status)
                 VALUES (:u, :r, :a, :ac, 'active')
             """),
             {

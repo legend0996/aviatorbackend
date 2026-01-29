@@ -19,7 +19,7 @@ from services.wallet_service import (
 )
 from services.user_service import get_user_id
 from services.auth_service import register_user, authenticate_user
-from services.mpesa_service import stk_push, b2c_withdraw
+from services.mpesa_service_mock import stk_push, b2c_withdraw  # Use mock by default
 
 from services.aviator_service import get_current_round
 from services.bet_service import place_bet
@@ -45,8 +45,10 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
+        "http://localhost:5174",
         "http://localhost:3000",
         "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
         "http://127.0.0.1:3000",
     ],
     allow_credentials=True,
@@ -64,7 +66,7 @@ class AdminLoginRequest(BaseModel):
 
 
 class UserAuthRequest(BaseModel):
-    phone_number: str
+    phone: str
     password: str
 
 
@@ -151,7 +153,7 @@ def admin_login(data: AdminLoginRequest):
 @app.post("/auth/register")
 def user_register(data: UserAuthRequest):
     try:
-        register_user(data.phone_number, data.password)
+        register_user(data.phone, data.password)
         return {"success": True, "message": "User registered successfully"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Registration failed: {str(e)}")
@@ -159,18 +161,18 @@ def user_register(data: UserAuthRequest):
 
 @app.post("/auth/login")
 def user_login(data: UserAuthRequest):
-    user_id = authenticate_user(data.phone_number, data.password)
+    user_id = authenticate_user(data.phone, data.password)
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = create_access_token({"sub": data.phone_number})
+    token = create_access_token({"sub": data.phone})
     return {
         "success": True,
         "access_token": token,
         "token_type": "bearer",
         "user": {
             "id": user_id,
-            "phone_number": data.phone_number
+            "phone_number": data.phone
         }
     }
 

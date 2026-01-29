@@ -6,22 +6,32 @@ from database import engine
 # ADMIN SETTINGS
 # -------------------
 def get_admin_settings(conn):
-    row = conn.execute(
+    # Get individual settings from key-value store
+    rows = conn.execute(
         text("""
-            SELECT min_deposit, min_withdraw, deposit_enabled, withdraw_enabled
+            SELECT setting_key, setting_value
             FROM admin_settings
-            LIMIT 1
         """)
-    ).fetchone()
+    ).fetchall()
 
-    if not row:
-        raise ValueError("Admin settings not configured")
+    if not rows:
+        # Return defaults if no settings
+        return {
+            "min_deposit": 100,
+            "min_withdraw": 100,
+            "deposit_enabled": True,
+            "withdraw_enabled": True,
+        }
+
+    settings = {}
+    for row in rows:
+        settings[row[0]] = row[1]
 
     return {
-        "min_deposit": float(row[0]),
-        "min_withdraw": float(row[1]),
-        "deposit_enabled": bool(row[2]),
-        "withdraw_enabled": bool(row[3]),
+        "min_deposit": float(settings.get("min_deposit", "100")),
+        "min_withdraw": float(settings.get("min_withdraw", "100")),
+        "deposit_enabled": settings.get("deposit_enabled", "true").lower() == "true",
+        "withdraw_enabled": settings.get("withdraw_enabled", "true").lower() == "true",
     }
 
 
@@ -57,14 +67,28 @@ def credit_wallet(user_id: int, amount: float, tx_type: str, reference: str):
         if amount < settings["min_deposit"]:
             raise ValueError("Deposit below minimum limit")
 
+        # Get current balance
+        wallet = conn.execute(
+            text("SELECT balance FROM wallets WHERE user_id = :u FOR UPDATE"),
+            {"u": user_id}
+        ).fetchone()
+        
+        if not wallet:
+            raise ValueError("Wallet not found")
+        
+        balance_before = float(wallet[0])
+        balance_after = balance_before + amount
+
+        # Insert transaction with balance info
         conn.execute(
             text("""
-                INSERT INTO transactions (user_id, amount, type, status, reference)
-                VALUES (:u, :a, :t, 'completed', :r)
+                INSERT INTO transactions (user_id, amount, type, balance_before, balance_after, status, reference)
+                VALUES (:u, :a, :t, :bb, :ba, 'completed', :r)
             """),
-            {"u": user_id, "a": amount, "t": tx_type, "r": reference}
+            {"u": user_id, "a": amount, "t": tx_type, "bb": balance_before, "ba": balance_after, "r": reference}
         )
 
+        # Update wallet
         conn.execute(
             text("""
                 UPDATE wallets
@@ -103,16 +127,19 @@ def debit_wallet(user_id: int, amount: float, tx_type: str, reference: str):
         if not wallet:
             raise ValueError("Wallet not found")
 
-        balance = float(wallet[0])
-        if balance < amount:
+        balance_before = float(wallet[0])
+        if balance_before < amount:
             raise ValueError("Insufficient balance")
 
+        balance_after = balance_before - amount
+
+        # Insert transaction with balance info
         conn.execute(
             text("""
-                INSERT INTO transactions (user_id, amount, type, status, reference)
-                VALUES (:u, :a, :t, 'completed', :r)
+                INSERT INTO transactions (user_id, amount, type, balance_before, balance_after, status, reference)
+                VALUES (:u, :a, :t, :bb, :ba, 'completed', :r)
             """),
-            {"u": user_id, "a": -amount, "t": tx_type, "r": reference}
+            {"u": user_id, "a": amount, "t": tx_type, "bb": balance_before, "ba": balance_after, "r": reference}
         )
 
         conn.execute(
@@ -138,10 +165,21 @@ def create_pending_deposit(user_id: int, amount: float, reference: str):
         if amount < settings["min_deposit"]:
             raise ValueError("Deposit below minimum")
 
+        # Get current balance
+        wallet = conn.execute(
+            text("SELECT balance FROM wallets WHERE user_id = :u FOR UPDATE"),
+            {"u": user_id}
+        ).fetchone()
+        
+        if not wallet:
+            raise ValueError("Wallet not found")
+        
+        balance_before = float(wallet[0])
+
         conn.execute(
             text("""
-                INSERT INTO transactions (user_id, amount, type, status, reference)
-                VALUES (:u, :a, 'deposit', 'pending', :r)
+                INSERT INTO transactions (user_id, amount, type, balance_before, balance_after, status, reference)
+                VALUES (:u, :a, 'deposit', :bb, :bb, 'pending', :r)
             """),
-            {"u": user_id, "a": amount, "r": reference}
+            {"u": user_id, "a": amount, "bb": balance_before, "r": reference}
         )

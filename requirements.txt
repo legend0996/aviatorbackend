@@ -5,9 +5,9 @@ uvicorn==0.40.0
 
 # Database
 SQLAlchemy==2.0.45
-PyMySQL==1.1.2
-greenlet==3.3.0
+# PyMySQL==1.1.2  # Removed for PostgreSQL
 psycopg2-binary==2.9.9
+greenlet==3.3.0
 
 
 # Authentication / Security

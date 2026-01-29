@@ -9,16 +9,17 @@ def register_user(phone_number: str, password: str):
     hashed = pwd_context.hash(password)
 
     with engine.begin() as conn:
-        # create user
+        # create user and get id (Postgres needs RETURNING instead of lastrowid)
         result = conn.execute(
             text("""
                 INSERT INTO users (phone, password_hash)
                 VALUES (:p, :h)
+                RETURNING id
             """),
             {"p": phone_number, "h": hashed}
         )
 
-        user_id = result.lastrowid
+        user_id = result.scalar_one()
 
         # create wallet
         conn.execute(

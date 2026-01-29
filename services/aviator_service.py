@@ -14,11 +14,11 @@ def generate_crash_point():
     if r < 0.7:
         return round(random.uniform(1.0, 2.0), 2)
     elif r < 0.9:
-        return round(random.uniform(2.0, 5.0), 2)
-    elif r < 0.99:
-        return round(random.uniform(5.0, 20.0), 2)
+        return round(random.uniform(2.0, 4.0), 2)
+    elif r < 0.98:
+        return round(random.uniform(4.0, 10.0), 2)
     else:
-        return round(random.uniform(20.0, 50.0), 2)
+        return round(random.uniform(10.0, 20.0), 2)
 
 
 # -------------------
@@ -44,7 +44,7 @@ def create_new_round():
             text("""
                 INSERT INTO game_rounds
                 (crash_point, status, betting_close_at, created_at)
-                VALUES (:c, 'open', DATE_ADD(:n, INTERVAL 5 SECOND), :n)
+                VALUES (:c, 'open', :n + INTERVAL '5 seconds', :n)
             """),
             {"c": crash, "n": now}
         )
