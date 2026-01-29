@@ -3,11 +3,14 @@
 
 set -o errexit
 
-echo "Installing dependencies..."
+echo "=== Python Version ==="
+python --version
+
+echo "=== Installing dependencies ==="
 pip install --upgrade pip
 pip install -r requirements.txt
 
-echo "Running database setup..."
+echo "=== Running database setup ==="
 python create_admin.py
 
-echo "Build completed successfully!"
+echo "=== Build completed successfully! ==="

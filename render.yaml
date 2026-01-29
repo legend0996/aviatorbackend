@@ -13,11 +13,9 @@ services:
     runtime: python
     plan: free
     region: oregon
-    buildCommand: "cd aviatorbackend && chmod +x build.sh && ./build.sh"
-    startCommand: "cd aviatorbackend && uvicorn main:app --host 0.0.0.0 --port $PORT"
+    buildCommand: "chmod +x build.sh && ./build.sh"
+    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: JWT_ALGORITHM
