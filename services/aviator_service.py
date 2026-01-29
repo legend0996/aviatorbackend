@@ -18,7 +18,8 @@ def generate_crash_point():
     elif r < 0.98:
         return round(random.uniform(4.0, 10.0), 2)
     else:
-        return round(random.uniform(10.0, 20.0), 2)
+        crash = round(random.uniform(10.0, 20.0), 2)
+        return min(crash, 20.0)  # Hard cap at 20x
 
 
 # -------------------

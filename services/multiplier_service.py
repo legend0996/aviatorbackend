@@ -5,7 +5,7 @@ from database import engine
 from services.wallet_service import credit_wallet
 
 
-MULTIPLIER_GROWTH_RATE = 0.35  # speed of plane (increased for faster rounds)
+MULTIPLIER_GROWTH_RATE = 0.60  # speed of plane (fast gameplay)
 
 
 def run_multiplier(round_id: int, crash_point: float):
@@ -15,7 +15,7 @@ def run_multiplier(round_id: int, crash_point: float):
     multiplier = 1.00
 
     while multiplier < crash_point:
-        time.sleep(0.05)  # reduced from 0.1 for smoother/faster gameplay
+        time.sleep(0.03)  # faster tick (30ms instead of 50ms)
         multiplier = round(multiplier + MULTIPLIER_GROWTH_RATE, 2)
 
         # auto cashout
