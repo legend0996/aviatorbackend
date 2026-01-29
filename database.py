@@ -74,12 +74,18 @@ def init_db_schema():
             CREATE TABLE IF NOT EXISTS game_rounds (
                 id BIGSERIAL PRIMARY KEY,
                 crash_point NUMERIC(6,2) NOT NULL,
+                current_multiplier NUMERIC(6,2) DEFAULT 1.00,
                 status VARCHAR(20) DEFAULT 'open',
                 betting_close_at TIMESTAMPTZ,
                 started_at TIMESTAMPTZ,
                 ended_at TIMESTAMPTZ,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )
+        """))
+
+        conn.execute(text("""
+            ALTER TABLE game_rounds
+            ADD COLUMN IF NOT EXISTS current_multiplier NUMERIC(6,2) DEFAULT 1.00
         """))
 
         conn.execute(text("""
