@@ -89,10 +89,16 @@ def init_db_schema():
                 round_id BIGINT NOT NULL REFERENCES game_rounds(id),
                 bet_amount NUMERIC(10,2) NOT NULL,
                 cashout_multiplier NUMERIC(6,2),
+                auto_cashout NUMERIC(6,2),
                 payout NUMERIC(12,2) DEFAULT 0.00,
                 status VARCHAR(20) DEFAULT 'active',
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )
+        """))
+
+        conn.execute(text("""
+            ALTER TABLE bets
+            ADD COLUMN IF NOT EXISTS auto_cashout NUMERIC(6,2)
         """))
 
         conn.execute(text("""
