@@ -18,16 +18,6 @@ def run_multiplier(round_id: int, crash_point: float):
         time.sleep(0.05)  # reduced from 0.1 for smoother/faster gameplay
         multiplier = round(multiplier + MULTIPLIER_GROWTH_RATE, 2)
 
-        with engine.begin() as conn:
-            conn.execute(
-                text("""
-                    UPDATE game_rounds
-                    SET current_multiplier = :m
-                    WHERE id = :r
-                """),
-                {"m": multiplier, "r": round_id}
-            )
-
         # auto cashout
         with engine.begin() as conn:
             bets = conn.execute(
@@ -66,10 +56,10 @@ def run_multiplier(round_id: int, crash_point: float):
         conn.execute(
             text("""
                 UPDATE game_rounds
-                SET status='crashed', ended_at=:n, current_multiplier=:m
+                SET status='crashed', ended_at=:n
                 WHERE id=:r
             """),
-            {"r": round_id, "n": datetime.utcnow(), "m": crash_point}
+            {"r": round_id, "n": datetime.utcnow()}
         )
 
     # lose remaining bets

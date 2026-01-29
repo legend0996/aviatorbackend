@@ -43,8 +43,8 @@ def create_new_round():
         conn.execute(
             text("""
                 INSERT INTO game_rounds
-                (crash_point, current_multiplier, status, betting_close_at, created_at)
-                VALUES (:c, 1.00, 'open', :n + INTERVAL '5 seconds', :n)
+                (crash_point, status, betting_close_at, created_at)
+                VALUES (:c, 'open', :n + INTERVAL '5 seconds', :n)
             """),
             {"c": crash, "n": now}
         )
@@ -57,7 +57,7 @@ def start_round(round_id):
         conn.execute(
             text("""
                 UPDATE game_rounds
-                SET status='running', started_at=:n, current_multiplier=1.00
+                SET status='running', started_at=:n
                 WHERE id=:r
             """),
             {"r": round_id, "n": datetime.utcnow()}
@@ -92,7 +92,7 @@ def get_current_round():
     with engine.connect() as conn:
         return conn.execute(
             text("""
-                SELECT id, crash_point, status, betting_close_at, current_multiplier
+                SELECT id, crash_point, status, betting_close_at
                 FROM game_rounds
                 WHERE status IN ('open','running')
                 ORDER BY id DESC

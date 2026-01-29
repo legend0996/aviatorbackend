@@ -108,7 +108,6 @@ def aviator_round():
         "round_id": round_data[0],
         "status": round_data[2],
         "betting_close_at": round_data[3],
-        "current_multiplier": float(round_data[4]) if round_data[4] is not None else 1.0,
     }
 
 
