@@ -101,6 +101,21 @@ def get_current_round():
             """)
         ).fetchone()
 
+def get_recent_rounds(limit=20):
+    """Get recent completed rounds with their crash points"""
+    with engine.connect() as conn:
+        results = conn.execute(
+            text("""
+                SELECT crash_point, ended_at
+                FROM game_rounds
+                WHERE status = 'crashed'
+                ORDER BY id DESC
+                LIMIT :limit
+            """),
+            {"limit": limit}
+        ).fetchall()
+        
+        return [{"crash_point": float(row[0]), "ended_at": row[1]} for row in results]
 
 # -------------------
 # GAME LOOP (THREAD)

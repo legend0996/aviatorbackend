@@ -76,6 +76,10 @@ def init_db_schema():
                 crash_point NUMERIC(6,2) NOT NULL,
                 current_multiplier NUMERIC(6,2) DEFAULT 1.00,
                 status VARCHAR(20) DEFAULT 'open',
+                server_seed VARCHAR(128),
+                client_seed VARCHAR(64),
+                nonce INT,
+                server_hash VARCHAR(128),
                 betting_close_at TIMESTAMPTZ,
                 started_at TIMESTAMPTZ,
                 ended_at TIMESTAMPTZ,
@@ -86,6 +90,14 @@ def init_db_schema():
         conn.execute(text("""
             ALTER TABLE game_rounds
             ADD COLUMN IF NOT EXISTS current_multiplier NUMERIC(6,2) DEFAULT 1.00
+        """))
+
+        conn.execute(text("""
+            ALTER TABLE game_rounds
+            ADD COLUMN IF NOT EXISTS server_seed VARCHAR(128),
+            ADD COLUMN IF NOT EXISTS client_seed VARCHAR(64),
+            ADD COLUMN IF NOT EXISTS nonce INT,
+            ADD COLUMN IF NOT EXISTS server_hash VARCHAR(128)
         """))
 
         conn.execute(text("""

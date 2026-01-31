@@ -21,7 +21,7 @@ from services.user_service import get_user_id
 from services.auth_service import register_user, authenticate_user
 from services.mpesa_service_mock import stk_push, b2c_withdraw  # Use mock by default
 
-from services.aviator_service import get_current_round
+from services.aviator_service import get_current_round, get_recent_rounds
 from services.bet_service import place_bet
 
 from database import Base
@@ -109,6 +109,13 @@ def aviator_round():
         "status": round_data[2],
         "betting_close_at": round_data[3],
     }
+
+
+@app.get("/aviator/recent")
+def aviator_recent():
+    """Get recent completed rounds"""
+    rounds = get_recent_rounds(limit=20)
+    return {"recent_rounds": rounds}
 
 
 # -------------------
