@@ -106,6 +106,7 @@ def aviator_round():
 
     return {
         "round_id": round_data[0],
+        "crash_point": float(round_data[1]) if round_data[1] is not None else None,
         "status": round_data[2],
         "betting_close_at": round_data[3],
     }
