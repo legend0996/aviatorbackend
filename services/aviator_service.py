@@ -108,7 +108,8 @@ def get_recent_rounds(limit=20):
             text("""
                 SELECT crash_point, ended_at
                 FROM game_rounds
-                WHERE status = 'crashed'
+                WHERE ended_at IS NOT NULL
+                AND status IN ('crashed', 'closed')
                 ORDER BY id DESC
                 LIMIT :limit
             """),
